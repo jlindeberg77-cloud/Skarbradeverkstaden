@@ -1,12 +1,3 @@
-# Skärbrädeverkstan v2
+# Skärbrädeverkstan v3
 
-Dimensionsmotor tillagd:
-- antal endgrain-rader anpassas till slutbredd
-- färdig radbredd räknas om så brädan går jämnt upp
-- sågspår/kerf
-- planingsmån per kapyta
-- kapbredd före planing
-- minsta källängd för alla tvärkap
-- extra längdmån i kaplistan
-
-Fortfarande en statisk PWA utan backend.
+Nytt: Face grain / Edge grain / End grain, A/B/C som gemensam konstruktionsmodell, A-B-C snabbmönster och lokal referensbild för kommande Skapa från bild. v2:s dimensionsmotor för endgrain behålls. Service-worker-cache är bumpad till v3.
