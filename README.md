@@ -1,3 +1,13 @@
-# Skärbrädeverkstan v3
+# Skärbrädeverkstan v4 — Endgrain Engine
 
-Nytt: Face grain / Edge grain / End grain, A/B/C som gemensam konstruktionsmodell, A-B-C snabbmönster och lokal referensbild för kommande Skapa från bild. v2:s dimensionsmotor för endgrain behålls. Service-worker-cache är bumpad till v3.
+V4 börjar flytten från mönsterritare till konstruktionsmotor.
+
+- Stavgeometri: rak, parallellogram, kil, triangel.
+- Vinkel per stav.
+- Parametrisk byggkedja: limning, kapning, transformering.
+- A/B/C-endgrain från v3 finns kvar.
+- Bildmodulen är förberedd för bakåt-översättning från färdig endgrainyta till byggprocess.
+
+Målmodell: råvirke → stavar → limning → kapning → transformering → ny limning → färdig endgrainyta.
+
+Automatisk datorseendeanalys är ännu inte implementerad i denna version.

@@ -26,7 +26,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:7px;borde
 @media(max-width:800px){main{grid-template-columns:1fr}.previewWrap{min-height:260px}}
 </style></head>
 <body>
-<header><div><h1>Skärbrädeverkstan</h1><small>Designer • v3</small></div><button onclick="saveProject()">Spara lokalt</button></header>
+<header><div><h1>Skärbrädeverkstan</h1><small>Endgrain Engine • v4</small></div><button onclick="saveProject()">Spara lokalt</button></header>
 <main>
 <section>
 <div class="card">
@@ -82,7 +82,7 @@ let state={mode:"end",glueups:{
  A:[{wood:"Valnöt",w:50},{wood:"Lönn",w:10},{wood:"Valnöt",w:50},{wood:"Padouk",w:8},{wood:"Valnöt",w:50}],
  B:[{wood:"Valnöt",w:50},{wood:"Purpleheart",w:8},{wood:"Lönn",w:20},{wood:"Purpleheart",w:8},{wood:"Valnöt",w:50}],
  C:[{wood:"Lönn",w:25},{wood:"Valnöt",w:50},{wood:"Padouk",w:10},{wood:"Valnöt",w:50},{wood:"Lönn",w:25}]
-},rows:[]};
+},rows:[],operations:[{type:"glue",value:"A"},{type:"cut",value:"90°"},{type:"transform",value:"spegla varannan"},{type:"glue",value:"slutlimning"}]};
 
 function val(id){return +document.getElementById(id).value||0}
 const modes={face:{label:"Face grain",help:"Ytved: längsgående remsor utan endgrain-tvärkap."},edge:{label:"Edge grain",help:"Kantved: längsgående, kantställda stavar."},end:{label:"End grain",help:"Ändträ: A/B/C-grundlimningar kapas till rader som kan speglas och förskjutas."}};
@@ -100,7 +100,7 @@ function renderStrips(){
  widthNotice.className="notice "+(Math.abs(sum-target)<.01?"ok":"bad");
  widthNotice.textContent=`Grundlimning ${active}: ${sum.toFixed(1)} mm. Slutlängd: ${target.toFixed(1)} mm. ${Math.abs(sum-target)<.01?"Måttet stämmer.":`Skillnad ${(sum-target).toFixed(1)} mm.`}`;
 }
-function addStrip(){state.glueups[active].push({wood:"Valnöt",w:20});render()}
+function addStrip(){state.glueups[active].push({wood:"Valnöt",w:20,shape:"rect",angle:0});render()}
 function duplicateStrip(){let a=state.glueups[active]; if(a.length)a.push({...a[a.length-1]});render()}
 function dimensionCalc(){
  let targetW=val("boardW"), finished=val("rowWidth"), kerf=val("kerf"), surf=val("surfAllowance");
@@ -157,11 +157,16 @@ function renderCutlist(){
  let map={}; Object.entries(state.glueups).forEach(([g,arr])=>arr.forEach(s=>{let k=g+"|"+s.wood+"|"+s.w;map[k]=(map[k]||0)+1}));
  cutlist.innerHTML=Object.entries(map).map(([k,n])=>{let [g,w,sw]=k.split("|");return `<tr><td>${g}</td><td>${w}</td><td>${sw} mm</td><td>${n}</td><td>${(dimensionCalc().sourceLength+val("lengthAllowance")).toFixed(0)} mm*</td></tr>`}).join("");
 }
-function render(){renderModes();renderTabs();renderStrips();renderRows();draw()}
+function normalizeGeometry(){Object.values(state.glueups).forEach(a=>a.forEach(s=>{s.shape=s.shape||"rect";s.angle=Number(s.angle||0)}));state.operations=state.operations||[]}
+function addOperation(type){let d={glue:"A",cut:"90°",transform:"spegla"};state.operations.push({type,value:d[type]});render()}
+function removeOperation(i){state.operations.splice(i,1);render()}
+function renderOperations(){if(!el("operations"))return;let n={glue:"Limning",cut:"Kapning",transform:"Transform"};el("operations").innerHTML=state.operations.map((o,i)=>`<div class="op"><b>${i+1}</b><b>${n[o.type]}</b><input value="${o.value}" onchange="state.operations[${i}].value=this.value;renderBuildPlan()"><button onclick="removeOperation(${i})">×</button></div>`).join("");renderBuildPlan()}
+function renderBuildPlan(){el("buildPlan").textContent=state.operations.map((o,i)=>`${i+1}. ${o.type==="glue"?"Limma":o.type==="cut"?"Kapa":"Transformera"} ${o.value}`).join(" → ")||"Lägg till operationer."}
+function render(){normalizeGeometry();renderModes();renderTabs();renderStrips();renderRows();renderOperations();draw()}
 ["boardL","boardW","boardT","kerf","rowWidth","cutAngle","surfAllowance","lengthAllowance"].forEach(id=>document.getElementById(id).addEventListener("input",render));
 function snapshot(){return {state,settings:{boardL:val("boardL"),boardW:val("boardW"),boardT:val("boardT"),kerf:val("kerf"),rowWidth:val("rowWidth"),cutAngle:val("cutAngle"),surfAllowance:val("surfAllowance"),lengthAllowance:val("lengthAllowance")}}}
 function saveProject(){localStorage.setItem("skarbradeverkstan",JSON.stringify(snapshot()));summary.textContent="Projektet är sparat lokalt på den här enheten."}
-function loadProject(){let x=localStorage.getItem("skarbradeverkstan");if(!x)return alert("Inget sparat projekt hittades.");let o=JSON.parse(x);state=o.state;state.mode=state.mode||"end";Object.entries(o.settings).forEach(([k,v])=>document.getElementById(k).value=v);render()}
+function loadProject(){let x=localStorage.getItem("skarbradeverkstan");if(!x)return alert("Inget sparat projekt hittades.");let o=JSON.parse(x);state=o.state;state.mode=state.mode||"end";normalizeGeometry();Object.entries(o.settings).forEach(([k,v])=>document.getElementById(k).value=v);render()}
 function resetProject(){if(confirm("Återställa projektet?")){localStorage.removeItem("skarbradeverkstan");location.reload()}}
 if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
 generateRows();render();
