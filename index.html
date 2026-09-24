@@ -26,7 +26,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:7px;borde
 @media(max-width:800px){main{grid-template-columns:1fr}.previewWrap{min-height:260px}}
 </style></head>
 <body>
-<header><div><h1>Skärbrädeverkstan</h1><small>Endgrain Engine • v4</small></div><button onclick="saveProject()">Spara lokalt</button></header>
+<header><div><h1>Skärbrädeverkstan</h1><small>Endgrain Engine • v4.1</small></div><button onclick="saveProject()">Spara lokalt</button></header>
 <main>
 <section>
 <div class="card">
@@ -162,7 +162,7 @@ function addOperation(type){let d={glue:"A",cut:"90°",transform:"spegla"};state
 function removeOperation(i){state.operations.splice(i,1);render()}
 function renderOperations(){if(!el("operations"))return;let n={glue:"Limning",cut:"Kapning",transform:"Transform"};el("operations").innerHTML=state.operations.map((o,i)=>`<div class="op"><b>${i+1}</b><b>${n[o.type]}</b><input value="${o.value}" onchange="state.operations[${i}].value=this.value;renderBuildPlan()"><button onclick="removeOperation(${i})">×</button></div>`).join("");renderBuildPlan()}
 function renderBuildPlan(){el("buildPlan").textContent=state.operations.map((o,i)=>`${i+1}. ${o.type==="glue"?"Limma":o.type==="cut"?"Kapa":"Transformera"} ${o.value}`).join(" → ")||"Lägg till operationer."}
-function render(){normalizeGeometry();renderModes();renderTabs();renderStrips();renderRows();renderOperations();draw()}
+function render(){normalizeGeometry();renderModes();renderTabs();renderStrips();renderRows();try{renderOperations()}catch(e){console.warn(e)};draw()}
 ["boardL","boardW","boardT","kerf","rowWidth","cutAngle","surfAllowance","lengthAllowance"].forEach(id=>document.getElementById(id).addEventListener("input",render));
 function snapshot(){return {state,settings:{boardL:val("boardL"),boardW:val("boardW"),boardT:val("boardT"),kerf:val("kerf"),rowWidth:val("rowWidth"),cutAngle:val("cutAngle"),surfAllowance:val("surfAllowance"),lengthAllowance:val("lengthAllowance")}}}
 function saveProject(){localStorage.setItem("skarbradeverkstan",JSON.stringify(snapshot()));summary.textContent="Projektet är sparat lokalt på den här enheten."}
