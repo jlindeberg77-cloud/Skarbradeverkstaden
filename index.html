@@ -1,173 +1,52 @@
 <!doctype html>
 <html lang="sv">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#17130f"><title>Skärbrädeverkstan</title>
-<link rel="manifest" href="manifest.webmanifest">
-<style>
-:root{--bg:#f5f1e8;--panel:#fffdf8;--ink:#241d17;--muted:#74695e;--accent:#6b4423;--line:#ddd3c5;--ok:#2d6a4f;--bad:#a33}
-*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--ink)}
-header{padding:18px 20px;background:#17130f;color:white;display:flex;justify-content:space-between;align-items:center}
-header h1{font-size:20px;margin:0}header small{color:#cfc5b9}
-main{max-width:1200px;margin:auto;padding:16px;display:grid;grid-template-columns:360px 1fr;gap:16px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 2px 8px #0000000d}
-h2{font-size:16px;margin:0 0 12px}label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
-input,select,button{font:inherit;border:1px solid var(--line);border-radius:8px;padding:9px;background:white;color:var(--ink)}
-input[type=number]{width:100%}button{cursor:pointer}button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
-button.danger{color:var(--bad)}.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.toolbar{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
-.strip{display:grid;grid-template-columns:1fr 78px 40px;gap:6px;margin:6px 0}.strip button{padding:5px}
-.modebar{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}.modebar button.active{background:var(--ink);color:white}.hidden{display:none}.tabs{display:flex;gap:5px;margin-bottom:10px}.tabs button.active{background:var(--ink);color:white}
-.notice{font-size:13px;padding:8px;border-radius:8px;background:#eee8dc;margin-top:8px}.notice.bad{background:#f8dddd;color:#812}.notice.ok{background:#dff0e6;color:#174f38}
-.previewWrap{overflow:auto;min-height:360px;display:flex;align-items:center;justify-content:center;background:#e8e0d5;border-radius:10px;padding:20px}
-canvas{max-width:100%;height:auto;box-shadow:0 5px 20px #0002;background:#fff}
-.rows{max-height:300px;overflow:auto}.finalrow{display:grid;grid-template-columns:45px 1fr 70px 70px;gap:5px;margin:5px 0;align-items:center}
-table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:7px;border-bottom:1px solid var(--line);text-align:left}
-.footer{font-size:12px;color:var(--muted);margin-top:12px}
-@media(max-width:800px){main{grid-template-columns:1fr}.previewWrap{min-height:260px}}
-</style></head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#253e35"><meta name="description" content="Rita din skärbräda. Planera limningar, kapning och material med verkliga mått.">
+  <title>Skärbrädeverkstan — Från idé till sista slipningen</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="styles.css"><script type="module" src="src/app.mjs"></script>
+</head>
 <body>
-<header><div><h1>Skärbrädeverkstan</h1><small>Endgrain Engine • v4.1</small></div><button onclick="saveProject()">Spara lokalt</button></header>
-<main>
-<section>
-<div class="card">
-<h2>Brädtyp</h2><div class="modebar" id="modebar"></div><div id="modeHelp" class="notice"></div><h2 style="margin-top:14px">Slutmått</h2>
-<div class="row"><div><label>Längd (mm)</label><input id="boardL" type="number" value="400" min="50"></div><div><label>Bredd (mm)</label><input id="boardW" type="number" value="300" min="50"></div></div>
-<div class="row"><div><label>Tjocklek (mm)</label><input id="boardT" type="number" value="28" min="5"></div><div><label>Sågspår/kerf (mm)</label><input id="kerf" type="number" value="3.2" step=".1"></div></div>
-</div>
-
-<div class="card" style="margin-top:12px">
-<h2 id="glueTitle">1. Grundlimningar</h2>
-<div class="tabs" id="tabs"></div>
-<div id="strips"></div>
-<div class="toolbar"><button onclick="addStrip()">+ Remsa</button><button onclick="duplicateStrip()">Duplicera sista</button></div>
-<div id="widthNotice" class="notice"></div>
-</div>
-
-<div id="endgrainPanel" class="card" style="margin-top:12px">
-<h2>2. Endgrain-rader</h2>
-<div class="row"><div><label>Önskad färdig radbredd (mm)</label><input id="rowWidth" type="number" value="25" min="3" step=".1"></div><div><label>Kapvinkel (°)</label><input id="cutAngle" type="number" value="90" min="1" max="179"></div></div>
-<div class="row"><div><label>Planingsmån per kapyta (mm)</label><input id="surfAllowance" type="number" value="0.5" min="0" step=".1"></div><div><label>Extra längdmån råämne (mm)</label><input id="lengthAllowance" type="number" value="20" min="0" step="1"></div></div>
-<div id="dimensionInfo" class="notice"></div>
-<div class="toolbar"><button class="primary" onclick="generateRows()">Generera rader</button><button onclick="alternate()">A–B alternerande</button><button onclick="patternABC()">A–B–C</button></div>
-<div id="finalRows" class="rows"></div>
-</div>
-
-<div class="card" style="margin-top:12px"><h2>Skapa från bild</h2><input id="imageInput" type="file" accept="image/*" onchange="loadReferenceImage(event)"><div id="imageInfo" class="notice">Ingen referensbild vald. v3 laddar bilden som referens; automatisk mönstertolkning kommer i nästa steg.</div></div>
-<div id="referenceCard" class="card hidden" style="margin-top:12px"><h2>Referensbild</h2><img id="referenceImage" style="max-width:100%;max-height:360px;display:block;margin:auto;border-radius:8px"></div>
-<div class="card" style="margin-top:12px">
-<h2>Projekt</h2><div class="toolbar"><button onclick="saveProject()">Spara</button><button onclick="loadProject()">Ladda</button><button onclick="resetProject()" class="danger">Återställ</button></div>
-<div class="footer">Sparas endast i webbläsaren på den här enheten.</div>
-</div>
-</section>
-
-<section>
-<div class="card">
-<h2>Förhandsvisning</h2>
-<div class="previewWrap"><canvas id="preview" width="900" height="650"></canvas></div>
-<div id="summary" class="notice"></div>
-</div>
-<div class="card" style="margin-top:12px">
-<h2>Kaplista / material</h2>
-<table><thead><tr><th>Limning</th><th>Träslag</th><th>Remsbredd</th><th>Antal</th><th>Min. längd</th></tr></thead><tbody id="cutlist"></tbody></table>
-</div>
-</section>
-</main>
-<script>
-const woods={
- "Valnöt":"#604536","Lönn":"#e8d8b3","Padouk":"#a84825","Purpleheart":"#6b3e68",
- "Ek":"#c4a36d","Ask":"#d7c7a0","Wenge":"#352a25","Bubinga":"#8c4c37","Zebrawood":"#c7a56b"
-};
-let active="A";
-let state={mode:"end",glueups:{
- A:[{wood:"Valnöt",w:50},{wood:"Lönn",w:10},{wood:"Valnöt",w:50},{wood:"Padouk",w:8},{wood:"Valnöt",w:50}],
- B:[{wood:"Valnöt",w:50},{wood:"Purpleheart",w:8},{wood:"Lönn",w:20},{wood:"Purpleheart",w:8},{wood:"Valnöt",w:50}],
- C:[{wood:"Lönn",w:25},{wood:"Valnöt",w:50},{wood:"Padouk",w:10},{wood:"Valnöt",w:50},{wood:"Lönn",w:25}]
-},rows:[],operations:[{type:"glue",value:"A"},{type:"cut",value:"90°"},{type:"transform",value:"spegla varannan"},{type:"glue",value:"slutlimning"}]};
-
-function val(id){return +document.getElementById(id).value||0}
-const modes={face:{label:"Face grain",help:"Ytved: längsgående remsor utan endgrain-tvärkap."},edge:{label:"Edge grain",help:"Kantved: längsgående, kantställda stavar."},end:{label:"End grain",help:"Ändträ: A/B/C-grundlimningar kapas till rader som kan speglas och förskjutas."}};
-function setMode(m){state.mode=m;render()}
-function renderModes(){modebar.innerHTML=Object.entries(modes).map(([k,m])=>`<button class="${state.mode===k?'active':''}" onclick="setMode('${k}')">${m.label}</button>`).join("");modeHelp.textContent=modes[state.mode].help;endgrainPanel.classList.toggle("hidden",state.mode!=="end");glueTitle.textContent=state.mode==="end"?"1. Grundlimningar":"Remsor / stavar"}
-function loadReferenceImage(e){let f=e.target.files&&e.target.files[0];if(!f)return;referenceImage.src=URL.createObjectURL(f);referenceCard.classList.remove("hidden");imageInfo.textContent=`Referens: ${f.name}. Bilden används för visuell jämförelse.`}
-
-function renderTabs(){tabs.innerHTML=["A","B","C"].map(x=>`<button class="${x===active?'active':''}" onclick="active='${x}';render()">${x}</button>`).join("")}
-function renderStrips(){
- strips.innerHTML=state.glueups[active].map((s,i)=>`<div class="strip">
- <select onchange="state.glueups['${active}'][${i}].wood=this.value;draw()">${Object.keys(woods).map(w=>`<option ${w===s.wood?'selected':''}>${w}</option>`).join("")}</select>
- <input type="number" min="1" step=".5" value="${s.w}" onchange="state.glueups['${active}'][${i}].w=+this.value;render()">
- <button onclick="state.glueups['${active}'].splice(${i},1);render()">×</button></div>`).join("");
- let sum=state.glueups[active].reduce((a,s)=>a+s.w,0), target=state.mode==="end"?val("boardL"):val("boardW");
- widthNotice.className="notice "+(Math.abs(sum-target)<.01?"ok":"bad");
- widthNotice.textContent=`Grundlimning ${active}: ${sum.toFixed(1)} mm. Slutlängd: ${target.toFixed(1)} mm. ${Math.abs(sum-target)<.01?"Måttet stämmer.":`Skillnad ${(sum-target).toFixed(1)} mm.`}`;
-}
-function addStrip(){state.glueups[active].push({wood:"Valnöt",w:20,shape:"rect",angle:0});render()}
-function duplicateStrip(){let a=state.glueups[active]; if(a.length)a.push({...a[a.length-1]});render()}
-function dimensionCalc(){
- let targetW=val("boardW"), finished=val("rowWidth"), kerf=val("kerf"), surf=val("surfAllowance");
- let n=Math.max(1,Math.round(targetW/Math.max(finished,0.1)));
- let actualFinished=targetW/n;
- let blankCut=actualFinished+2*surf;
- let pitch=blankCut+kerf;
- let sourceLength=n*blankCut+Math.max(0,n-1)*kerf;
- return {n,actualFinished,blankCut,pitch,sourceLength};
-}
-function generateRows(){
- let d=dimensionCalc();
- state.rows=Array.from({length:d.n},(_,i)=>({source:"A",mirror:i%2===1,offset:0}));
- document.getElementById("rowWidth").value=d.actualFinished.toFixed(2);
- render();
-}
-function alternate(){if(!state.rows.length)generateRows();state.rows.forEach((r,i)=>{r.source=i%2?"B":"A";r.mirror=i%2===1});render()}
-function patternABC(){if(!state.rows.length)generateRows();let p=["A","B","C"];state.rows.forEach((r,i)=>{r.source=p[i%3];r.mirror=i%2===1});render()}
-function renderRows(){
- finalRows.innerHTML=state.rows.map((r,i)=>`<div class="finalrow"><b>${i+1}</b>
- <select onchange="state.rows[${i}].source=this.value;draw()">${["A","B","C"].map(x=>`<option ${x===r.source?'selected':''}>${x}</option>`).join("")}</select>
- <button onclick="state.rows[${i}].mirror=!state.rows[${i}].mirror;render()">${r.mirror?"Speglad":"Normal"}</button>
- <input title="Offset mm" type="number" step="1" value="${r.offset}" onchange="state.rows[${i}].offset=+this.value;draw()"></div>`).join("");
-}
-function patternSegments(source, mirror){
- let a=[...state.glueups[source]]; return mirror?a.reverse():a;
-}
-function draw(){
- const c=preview,ctx=c.getContext("2d"), L=val("boardL"),W=val("boardW"),rw=val("rowWidth");
- ctx.clearRect(0,0,c.width,c.height);ctx.fillStyle="#f6f0e7";ctx.fillRect(0,0,c.width,c.height);
- let pad=50,scale=Math.min((c.width-pad*2)/Math.max(L,1),(c.height-pad*2)/Math.max(W,1));
- let ox=(c.width-L*scale)/2,oy=(c.height-W*scale)/2;
- ctx.save();ctx.beginPath();ctx.rect(ox,oy,L*scale,W*scale);ctx.clip();
- let y=0;
- if(!state.rows.length){state.rows=[{source:"A",mirror:false,offset:0}]}
- state.rows.forEach((r,ri)=>{
-   let h=Math.min(rw,W-y); if(h<=0)return;
-   let segs=patternSegments(r.source,r.mirror), total=segs.reduce((a,s)=>a+s.w,0);
-   let x=(r.offset%Math.max(total,1))-total;
-   while(x<L){
-     for(let s of segs){let sw=s.w;ctx.fillStyle=woods[s.wood]||"#aaa";ctx.fillRect(ox+x*scale,oy+y*scale,sw*scale,h*scale);
-       ctx.strokeStyle="#0002";ctx.strokeRect(ox+x*scale,oy+y*scale,sw*scale,h*scale);x+=sw}
-   } y+=h;
- });
- ctx.restore();ctx.strokeStyle="#33281f";ctx.lineWidth=3;ctx.strokeRect(ox,oy,L*scale,W*scale);
- ctx.fillStyle="#33281f";ctx.font="14px system-ui";ctx.fillText(`${L} × ${W} × ${val("boardT")} mm`,ox,oy-12);
- let used=Math.min(state.rows.length*rw,W), d=dimensionCalc();
- summary.textContent=state.mode==="end"?`${state.rows.length} rader × ${rw.toFixed(2)} mm = ${(state.rows.length*rw).toFixed(1)} mm. Målyta ${L} × ${W} mm. Kapvinkel ${val("cutAngle")}°.`:`${modes[state.mode].label}: limning ${active}, målyta ${L} × ${W} mm.`;
- dimensionInfo.className="notice "+(Math.abs(state.rows.length*rw-W)<0.11?"ok":"bad");
- dimensionInfo.textContent=`Dimensionering: ${d.n} rader. Färdig rad ${d.actualFinished.toFixed(2)} mm. Kapa varje segment ${d.blankCut.toFixed(2)} mm före planing (${val("surfAllowance").toFixed(1)} mm/kapyta). Kerf ${val("kerf").toFixed(1)} mm. Minsta källängd för ${d.n} kap: ${d.sourceLength.toFixed(1)} mm.`;
- renderCutlist();
-}
-function renderCutlist(){
- let map={}; Object.entries(state.glueups).forEach(([g,arr])=>arr.forEach(s=>{let k=g+"|"+s.wood+"|"+s.w;map[k]=(map[k]||0)+1}));
- cutlist.innerHTML=Object.entries(map).map(([k,n])=>{let [g,w,sw]=k.split("|");return `<tr><td>${g}</td><td>${w}</td><td>${sw} mm</td><td>${n}</td><td>${(dimensionCalc().sourceLength+val("lengthAllowance")).toFixed(0)} mm*</td></tr>`}).join("");
-}
-function normalizeGeometry(){Object.values(state.glueups).forEach(a=>a.forEach(s=>{s.shape=s.shape||"rect";s.angle=Number(s.angle||0)}));state.operations=state.operations||[]}
-function addOperation(type){let d={glue:"A",cut:"90°",transform:"spegla"};state.operations.push({type,value:d[type]});render()}
-function removeOperation(i){state.operations.splice(i,1);render()}
-function renderOperations(){if(!el("operations"))return;let n={glue:"Limning",cut:"Kapning",transform:"Transform"};el("operations").innerHTML=state.operations.map((o,i)=>`<div class="op"><b>${i+1}</b><b>${n[o.type]}</b><input value="${o.value}" onchange="state.operations[${i}].value=this.value;renderBuildPlan()"><button onclick="removeOperation(${i})">×</button></div>`).join("");renderBuildPlan()}
-function renderBuildPlan(){el("buildPlan").textContent=state.operations.map((o,i)=>`${i+1}. ${o.type==="glue"?"Limma":o.type==="cut"?"Kapa":"Transformera"} ${o.value}`).join(" → ")||"Lägg till operationer."}
-function render(){normalizeGeometry();renderModes();renderTabs();renderStrips();renderRows();try{renderOperations()}catch(e){console.warn(e)};draw()}
-["boardL","boardW","boardT","kerf","rowWidth","cutAngle","surfAllowance","lengthAllowance"].forEach(id=>document.getElementById(id).addEventListener("input",render));
-function snapshot(){return {state,settings:{boardL:val("boardL"),boardW:val("boardW"),boardT:val("boardT"),kerf:val("kerf"),rowWidth:val("rowWidth"),cutAngle:val("cutAngle"),surfAllowance:val("surfAllowance"),lengthAllowance:val("lengthAllowance")}}}
-function saveProject(){localStorage.setItem("skarbradeverkstan",JSON.stringify(snapshot()));summary.textContent="Projektet är sparat lokalt på den här enheten."}
-function loadProject(){let x=localStorage.getItem("skarbradeverkstan");if(!x)return alert("Inget sparat projekt hittades.");let o=JSON.parse(x);state=o.state;state.mode=state.mode||"end";normalizeGeometry();Object.entries(o.settings).forEach(([k,v])=>document.getElementById(k).value=v);render()}
-function resetProject(){if(confirm("Återställa projektet?")){localStorage.removeItem("skarbradeverkstan");location.reload()}}
-if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
-generateRows();render();
-</script></body></html>
+  <header class="app-header">
+    <a class="brand" href="./" aria-label="Skärbrädeverkstan startsida"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>Skärbrädeverkstan<small>DITT DIGITALA ARBETSBORD</small></span></a>
+    <div class="project-actions"><span id="save-status" role="status">Öppnar projekt…</span><button id="undo" class="quiet" disabled>Ångra</button><button id="export">Exportera JSON</button><button id="import">Öppna JSON</button><button id="new" class="dark">Ny design ＋</button><input id="import-file" type="file" accept=".json,application/json" hidden></div>
+  </header>
+  <main>
+    <section class="intro"><div><p class="eyebrow">PLANERA. BYGG. BEVARA.</p><h1>Din nästa skärbräda börjar här.</h1><p>Från första stav till färdig bräda. Med mått som följer med hela vägen.</p></div><span class="unit-badge">Alla mått i millimeter</span></section>
+    <details class="examples"><summary>Utgå från ett exempel <span>Fyra idéer att göra till dina egna</span></summary><div id="examples" class="example-grid"></div></details>
+    <div id="project-message" role="status" hidden></div>
+    <div class="workspace">
+      <aside class="editor" aria-label="Designinställningar">
+        <section class="panel"><div class="section-title"><span class="step-number">01</span><h2>Brädan</h2></div>
+          <label for="project-name">Projektnamn</label><input id="project-name" data-path="name" maxlength="80">
+          <div class="segmented" aria-label="Brädtyp"><button data-mode="edge">Längsgående <small>Edge grain</small></button><button data-mode="end">Ändträ <small>End grain</small></button></div>
+          <div class="fields three"><label>Längd<input data-path="target.length" type="number" min="30" max="2000" step="1"></label><label>Bredd<input data-path="target.width" type="number" min="30" max="2000" step="1"></label><label>Tjocklek<input data-path="target.thickness" type="number" min="5" max="150" step="0.5"></label></div><p class="help">Önskade slutmått efter planing och trimning.</p>
+        </section>
+        <section class="panel"><div class="section-title"><span class="step-number">02</span><h2>Stavar & träslag</h2><span id="strip-count" class="count"></span></div>
+          <div id="source-tabs" class="segmented compact" aria-label="Grundlimning"><button data-source="A">Limning A</button><button data-source="B">Limning B</button></div><p class="help" id="source-help"></p>
+          <div class="strip-head"><span>Träslag</span><span>Bredd, mm</span></div><div id="strips"></div><button class="add-strip" id="add-strip">＋ Lägg till stav</button><div id="width-status" class="width-status" aria-live="polite"></div>
+          <details class="advanced"><summary>Vinklade stavar <span>Avancerat</span></summary><label for="bevel">Längsgående fasvinkel (°)</label><input id="bevel" type="number" min="-45" max="45" step="0.5"><p class="help">0° = raka sidor. Exempelvis 22,5° fasar båda långsidorna genom stavens tjocklek. Samma vinkel gäller alla stavar i denna limning. Ändarnas tvärkap förblir vinkelräta.</p><p class="help" id="bevel-info"></p></details>
+        </section>
+        <section class="panel" id="end-settings"><div class="section-title"><span class="step-number">03</span><h2>Från längsved till ändträ</h2></div>
+          <div class="fields"><label>Limningens tjocklek<input data-path="stock.thickness" type="number" min="5" max="150" step="0.5"></label><label>Tvärkapmått<input data-path="stock.slice" type="number" min="5" max="160" step="0.5"></label></div><p class="help">Efter 90° vältning blir limningens tjocklek radens längd. Tvärkapmåttet blir brädans tjocklek före planing.</p>
+          <label for="pattern">Arrangera rader</label><select id="pattern" data-path="arrangement.pattern"><option value="same">Alla rader lika · A</option><option value="turn">Vrid varannan rad 180° · A</option><option value="ab">Varannan rad från separat limning · A/B</option><option value="ab-turn">A/B + vrid varannan rad 180°</option></select>
+          <details class="advanced"><summary>Förskjutning av varannan rad</summary><label>Förskjutning (mm)<input data-path="arrangement.offset" type="number" min="-150" max="150" step="0.5"></label><p class="help">Positivt åt höger i tvärsnittet. Radernas gemensamma bredd minskar. Överskjutande trä trimmas bort.</p></details><div id="row-info" class="info-box"></div>
+        </section>
+        <section class="panel"><details id="allowances"><summary>Sågspår & arbetsmån</summary><div class="fields"><label>Sågspår<input data-path="stock.kerf" type="number" min="0" max="10" step="0.1"></label><label>Ytmån per sida<input data-path="stock.surface" type="number" min="0" max="10" step="0.1"></label><label>Ändmån per ände<input data-path="stock.endTrim" type="number" min="0" max="100" step="1"></label></div><p class="help">Kaplistan utgår från riktat virke. Råvirkets riktningsmån, längsgående sågspår och defektspill tillkommer vid inköp.</p></details></section>
+        <section class="panel"><div class="section-title"><span class="step-number">＋</span><h2>Det sista uttrycket</h2></div>
+          <label class="toggle"><input type="checkbox" data-path="groove.enabled"><span>Saftspår <small>Juice groove</small></span></label>
+          <div id="groove-settings"><div class="fields three"><label>Kant → centrum<input data-path="groove.inset" type="number" min="2" max="200" step="1"></label><label>Bredd<input data-path="groove.width" type="number" min="1" max="30" step="0.5"></label><label>Djup<input data-path="groove.depth" type="number" min="0.5" max="20" step="0.5"></label></div></div>
+          <label class="toggle"><input type="checkbox" data-path="inlay.enabled"><span>Text & inlay <small>Designskiss för CNC</small></span></label>
+          <div id="inlay-settings"><label>Din text<input data-path="inlay.text" maxlength="60"></label><div class="fields"><label>Typsnitt<select data-path="inlay.font"><option value="serif">Klassisk serif</option><option value="sans-serif">Ren sans serif</option><option value="monospace">Verkstad / mono</option></select></label><label>Inlayträ<select data-path="inlay.wood" id="inlay-wood"></select></label><label>Teckenstorlek (mm)<input data-path="inlay.size" type="number" min="3" max="100" step="1"></label><label>Rotation (°)<input data-path="inlay.rotation" type="number" min="-180" max="180" step="5"></label><label>Vågrät position (%)<input data-path="inlay.x" type="number" min="0" max="100" step="1"></label><label>Lodrät position (%)<input data-path="inlay.y" type="number" min="0" max="100" step="1"></label></div><p class="help">Texten klipps vid brädans kant. Visar utseende, inte fräsdjup, passning eller verktygsbanor.</p></div>
+        </section>
+      </aside>
+      <section class="canvas-column" aria-label="Förhandsvisning och produktion">
+        <div class="preview-panel panel"><div class="preview-heading"><div><p class="eyebrow">DITT ARBETSBORD</p><h2 id="preview-title">Färdig bräda</h2></div><span id="mode-badge" class="pill"></span></div><nav id="view-tabs" class="view-tabs" aria-label="Visa tillverkningssteg"></nav><div id="preview" class="preview" aria-live="off"></div><p id="view-description" class="view-description"></p><div id="metrics" class="metrics"></div></div>
+        <div id="warnings" aria-live="polite"></div>
+        <section class="panel production"><div class="production-heading"><div><p class="eyebrow">TA MED TILL VERKSTADEN</p><h2>Från ritning till verklighet</h2></div><button id="print" class="quiet">Skriv ut</button></div><nav class="report-tabs" aria-label="Produktionsunderlag"><button data-report="plan">Arbetsplan</button><button data-report="cutlist">Kaplista</button><button data-report="material">Material</button></nav><div id="report-plan"></div><div id="report-cutlist"></div><div id="report-material"></div></section>
+        <p class="workspace-note">Byggbar geometri, hela vägen. Träets färg och ådring är stiliserade och varierar i verkligheten.</p>
+      </section>
+    </div>
+  </main>
+  <footer><span>SKÄRBRÄDEVERKSTAN</span><span>Omsorg om varje stav.</span><a href="docs/MODELL.md">Så räknar verktyget</a></footer><noscript>Aktivera JavaScript för att använda designverktyget.</noscript>
+</body></html>

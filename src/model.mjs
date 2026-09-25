@@ -206,7 +206,19 @@ export function derive(project) {
   const assembled = end ? rows.flatMap(r => arrangeRow(sections[r.source], r.index, r.turn, r.offset).map(part => ({ ...part, source: r.source }))) : sources.A.parts;
   const rawLength = end ? count * z : sources.A.length;
   // Edge: remove end allowance at both ends. Strips are constant along the grain.
-  const finalParts = cropParts(assembled, actual.width, actual.length, left);
+  // On a bevelled edge-grain panel, top planing exposes a different X position.
+  // The sides were squared before planing, so only internal boundaries shift.
+  let finishedSurface = assembled;
+  if (!end && p.glueups.A.angle) {
+    const section = sections.A;
+    let x = Math.tan(p.glueups.A.angle * Math.PI / 180) * (z - s.surface) - section.left;
+    finishedSurface = p.glueups.A.strips.map((strip, index) => {
+      const part = { wood: strip.wood, strip: index, polygon: rectangle(x, 0, strip.width, t.length) };
+      x += strip.width;
+      return part;
+    });
+  }
+  const finalParts = cropParts(finishedSurface, actual.width, actual.length, left);
   if (end) {
     operations.push({ id: 'rotate', type: 'rotate90', inputs: Object.keys(sources).map(k => `cut-${k}`), rows, parts: assembled, width: availableWidth, length: rawLength, thickness: s.slice });
     operations.push({ id: 'glue2', type: 'glue', inputs: ['rotate'], parts: assembled, width: availableWidth, length: rawLength, thickness: s.slice });

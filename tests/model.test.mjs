@@ -113,3 +113,16 @@ test('all examples satisfy requested dimensions and have complete operation line
     assert.equal(m.operations.at(-1).type,'trim'); assert.ok(m.plan.length>=3);
   }
 });
+test('top planing a bevelled edge board shifts internal boundaries',()=>{
+  const p=example();p.glueups.A.angle=30;
+  const m=derive(p), before=m.sources.A.parts.find(p=>p.strip===1), after=m.parts.find(p=>p.strip===1);
+  close(Math.min(...before.polygon.map(p=>p.x))-Math.min(...after.polygon.map(p=>p.x)), Math.tan(Math.PI/6)*p.stock.surface);
+  close(m.parts.reduce((n,p)=>n+area(p.polygon),0),m.actual.width*m.actual.length);
+});
+test('opposed bevels and offsets preserve complete final surface across a parameter grid',()=>{
+  for(const angle of [-45,-22.5,0,22.5,45])for(const offset of [-20,0,20])for(const pattern of ['same','turn','ab','ab-turn']){
+    const p=example('chevron');p.glueups.A.angle=angle;p.glueups.B.angle=-angle;p.arrangement.offset=offset;p.arrangement.pattern=pattern;
+    const m=derive(p);
+    close(m.parts.reduce((n,p)=>n+area(p.polygon),0),m.actual.width*m.actual.length);
+  }
+});
