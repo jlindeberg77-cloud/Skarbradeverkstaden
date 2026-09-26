@@ -47,8 +47,9 @@ function render(){
   const end=project.mode==='end';
   $('end-settings').hidden=!end;$('source-tabs').hidden=!end;$('source-actions').hidden=!end;$('reglue-settings').hidden=!end;
   $('sequence-settings').hidden=!project.arrangement.pattern.startsWith('custom');
-  $('source-tabs').innerHTML=SOURCE_IDS.filter(key=>project.glueups[key]).map(key=>`<button data-source="${key}" aria-pressed="${key===active}">Limning ${key}</button>`).join('');
+  $('source-tabs').innerHTML=SOURCE_IDS.map(key=>`<button data-source="${key}" data-created="${!!project.glueups[key]}" aria-pressed="${key===active}" ${project.glueups[key]?'':`aria-label="Skapa grundlimning ${key}" title="Skapa ${key} som kopia av aktuell grundlimning"`}>${project.glueups[key]?'':'＋ '}Limning ${key}</button>`).join('');
   $('add-source').disabled=Object.keys(project.glueups).length>=4;$('remove-source').disabled=active==='A';
+  $('add-source').textContent=SOURCE_IDS.find(key=>!project.glueups[key])?`＋ Lägg till ${SOURCE_IDS.find(key=>!project.glueups[key])}`:'Alla fyra skapade';
   $('remove-source').textContent=`Ta bort ${active}`;
   $('add-reglue').hidden=project.reglue.length===2;$('add-reglue').textContent=`＋ Lägg till limning ${project.reglue.length+3}`;
   $('extra-row-settings').hidden=!project.reglue.length&&!project.stock.extraRows;
@@ -117,7 +118,14 @@ document.addEventListener('focusout',event=>{
 document.addEventListener('click',event=>{
   const b=event.target.closest('button');if(!b)return;
   if(b.dataset.mode){const next=clone(project);next.mode=b.dataset.mode;const previous=active;active='A';view='finish';if(!commit(next,{controls:true})){active=previous;renderControls();render();}}
-  if(b.dataset.source){active=b.dataset.source;renderControls();render();}
+  if(b.dataset.source){
+    const key=b.dataset.source;
+    if(!project.glueups[key]){
+      const next=clone(project),previous=active;next.glueups[key]=clone(project.glueups[active]);active=key;
+      if(commit(next,{controls:true}))message(`Grundlimning ${key} skapad som kopia av ${previous}. Välj ${key} i radföljden när den ska användas.`);
+      else active=previous;
+    }else{active=key;renderControls();render();}
+  }
   if(b.dataset.view){view=b.dataset.view;render();}
   if(b.dataset.report){report=b.dataset.report;render();}
   if(b.dataset.removeSequence!==undefined){const next=clone(project);next.arrangement.sequence.splice(Number(b.dataset.removeSequence),1);commit(next,{controls:true});}

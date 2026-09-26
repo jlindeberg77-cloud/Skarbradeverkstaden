@@ -1,5 +1,5 @@
 // Network first; cache only this application's static files, never arbitrary requests.
-const CACHE = 'skarbrade-workshop-v3';
+const CACHE = 'skarbrade-workshop-v4';
 const FILES = ['./', './index.html', './styles.css', './src/app.mjs', './src/model.mjs', './src/preview.mjs', './manifest.webmanifest', './favicon.svg', './docs/MODELL.md'];
 const URLS = new Set(FILES.map(file => new URL(file, self.registration.scope).href));
 self.addEventListener('install', event => {

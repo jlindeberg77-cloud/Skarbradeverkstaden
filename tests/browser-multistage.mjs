@@ -14,10 +14,12 @@ try {
   await context.addInitScript(p=>{if(!localStorage.getItem('skarbradeverkstan.project.v1'))localStorage.setItem('skarbradeverkstan.project.v1',JSON.stringify(p));},legacy);
   await page.goto(process.env.TEST_URL||'http://127.0.0.1:4173');await page.locator('#preview svg').waitFor();
   check((await page.locator('#metrics').innerText()).includes('360 × 280'),'version 1 migrates with same dimensions');
-  await page.locator('#add-source').click();
+  check(await page.locator('[data-source]').count()===4,'all four source tabs visible in an existing A/B project');
+  check(await page.locator('[data-source="C"]').getAttribute('data-created')==='false','C is available without adding unused material');
+  await page.locator('[data-source="C"]').click();
   check(await page.locator('[data-source="C"]').getAttribute('aria-pressed')==='true','add and edit source C');
   await page.locator('[aria-label="Träslag stav 1"]').selectOption('wenge');
-  await page.locator('#add-source').click();
+  await page.locator('[data-source="D"]').click();
   check(await page.locator('[data-source="D"]').getAttribute('aria-pressed')==='true','add and edit source D');
   await page.locator('[aria-label="Träslag stav 1"]').selectOption('purpleheart');
   check(await page.locator('#add-source').isDisabled(),'maximum four sources');
@@ -78,10 +80,10 @@ try {
   await page.locator('#undo').click();
   check(await page.locator('[data-view="glue4"]').count()===1,'undo restores gluing and settings');
   await page.locator('[data-source="D"]').click();await page.locator('#remove-source').click();
-  check(await page.locator('[data-source="D"]').count()===0,'remove source also repairs sequence');
+  check(await page.locator('[data-source="D"]').getAttribute('data-created')==='false','remove source also repairs sequence and leaves a creation tab');
   check(!(await page.locator('#row-info').innerText()).includes('D'),'no dangling source references');
   await page.locator('#undo').click();
-  check(await page.locator('[data-source="D"]').count()===1,'undo restores removed source and sequence');
+  check(await page.locator('[data-source="D"]').getAttribute('data-created')==='true','undo restores removed source and sequence');
   await page.locator('[data-mode="edge"]').click();
   check(await page.locator('#reglue-settings').isHidden(),'regluing hidden in edge mode');
   await page.locator('[data-mode="end"]').click();
