@@ -1,4 +1,4 @@
-import { WOODS, EXAMPLES, STORAGE_KEY, clone, example, derive, crossSection, sumWidth, mm, serialize, deserialize, moveStrip } from './model.mjs';
+import { WOODS, EXAMPLES, SOURCE_IDS, STORAGE_KEY, sourceSequence, clone, example, derive, crossSection, sumWidth, mm, serialize, deserialize, moveStrip } from './model.mjs';
 import { renderPreview, escapeHTML as esc } from './preview.mjs';
 const $=id=>document.getElementById(id);
 let project=example(), active='A', view='finish', report='plan', history=[], storageBlocked=false;
@@ -23,10 +23,18 @@ function commit(next,{controls=false}={}) {
 }
 function options(selected){return Object.entries(WOODS).map(([id,w])=>`<option value="${id}" ${id===selected?'selected':''}>${w.name}</option>`).join('');}
 function renderControls(){
-  if(project.mode==='edge'||!project.arrangement.pattern.startsWith('ab'))active='A';
+  if(project.mode==='edge'||!project.glueups[active])active='A';
+  renderSequence();renderReglueControls();
   document.querySelectorAll('[data-path]').forEach(el=>{const value=getPath(project,el.dataset.path);if(el.type==='checkbox')el.checked=value;else el.value=value;el.removeAttribute('aria-invalid');});
   $('bevel').value=project.glueups[active].angle;
   renderStrips();
+}
+function renderSequence(){
+  $('sequence-editor').innerHTML=project.arrangement.sequence.map((key,i)=>`<div class="sequence-position"><label>Rad ${i+1}<select data-sequence="${i}" aria-label="Grundlimning position ${i+1}">${SOURCE_IDS.filter(k=>project.glueups[k]).map(k=>`<option ${key===k?'selected':''}>${k}</option>`).join('')}</select></label><button data-remove-sequence="${i}" aria-label="Ta bort position ${i+1}" ${project.arrangement.sequence.length===1?'disabled':''}>×</button></div>`).join('');
+  $('add-sequence').disabled=project.arrangement.sequence.length>=16;
+}
+function renderReglueControls(){
+  $('reglue-editor').innerHTML=project.reglue.map((step,i)=>`<div class="reglue-step"><div class="section-title"><h3>Limning ${i+3}</h3><button data-remove-reglue="${i}" ${i!==project.reglue.length-1?'disabled':''} title="Ta bort sista limningssteget först">Ta bort steg</button></div><label>Kapriktning<select data-path="reglue.${i}.axis"><option value="x">Dela bredden · längsgående remsor</option><option value="y">Dela längden · tvärgående remsor</option></select></label><div class="fields"><label>Remsmått (mm)<input data-path="reglue.${i}.stripWidth" type="number" min="5" max="500" step="0.5"></label><label>Ytmån per sida (mm)<input data-path="reglue.${i}.surface" type="number" min="0" max="5" step="0.1"></label></div><label class="toggle"><input data-path="reglue.${i}.turn" type="checkbox"><span>Vrid varannan remsa 180°</span></label><label class="toggle"><input data-path="reglue.${i}.reverse" type="checkbox"><span>Omvänd remsordning</span></label><p class="help" id="reglue-result-${i}"></p></div>`).join('');
 }
 function renderStrips(){
   const strips=project.glueups[active].strips;
@@ -36,20 +44,30 @@ function renderStrips(){
 function render(){
   let m;
   try {m=derive(project);}catch(error){$('preview').innerHTML=`<p class="preview-error">${esc(error.message)}</p>`;return;}
-  const end=project.mode==='end', ab=end&&project.arrangement.pattern.startsWith('ab');
-  $('end-settings').hidden=!end;$('source-tabs').hidden=!ab;
+  const end=project.mode==='end';
+  $('end-settings').hidden=!end;$('source-tabs').hidden=!end;$('source-actions').hidden=!end;$('reglue-settings').hidden=!end;
+  $('sequence-settings').hidden=!project.arrangement.pattern.startsWith('custom');
+  $('source-tabs').innerHTML=SOURCE_IDS.filter(key=>project.glueups[key]).map(key=>`<button data-source="${key}" aria-pressed="${key===active}">Limning ${key}</button>`).join('');
+  $('add-source').disabled=Object.keys(project.glueups).length>=4;$('remove-source').disabled=active==='A';
+  $('remove-source').textContent=`Ta bort ${active}`;
+  $('add-reglue').hidden=project.reglue.length===2;$('add-reglue').textContent=`＋ Lägg till limning ${project.reglue.length+3}`;
+  $('extra-row-settings').hidden=!project.reglue.length&&!project.stock.extraRows;
+  $('reglue-info').hidden=!m.reglues.length;
+  $('reglue-info').innerHTML=m.reglues.map(step=>`Limning ${step.stage}: <b>${mm(step.length)} × ${mm(step.width)} × ${mm(step.thickness)} mm</b>`).join('<br>');
+  for(const [i,step] of m.reglues.entries())if($(`reglue-result-${i}`))$(`reglue-result-${i}`).textContent=`${step.count} remsor. Sågspår totalt ${mm(step.count*step.kerf)} mm + restbit ${mm(step.offcut)} mm. Kvar ${mm(step.length)} × ${mm(step.width)} × ${mm(step.thickness)} mm.`;
   $('groove-settings').hidden=!project.groove.enabled;$('inlay-settings').hidden=!project.inlay.enabled;
   $('undo').disabled=!history.length;
   document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===project.mode));
   document.querySelectorAll('[data-source]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.source===active));
-  $('source-help').textContent=ab?`Redigerar grundlimning ${active}. A och B tillverkas separat; kaplistan räknar ut längden för varje limning.`:'Ordningen följer stavarna tvärs över brädans bredd.';
+  $('source-help').textContent=end?`Redigerar grundlimning ${active}. ${m.sources[active]?`${m.sources[active].count} rader hämtas härifrån; källängden räknas separat.`:'Används inte i radföljden och räknas inte i materialbehovet.'}`:'Ordningen följer stavarna tvärs över brädans bredd.';
   const section=crossSection(project.glueups[active],end?project.stock.thickness:project.target.thickness+2*project.stock.surface);
   const total=sumWidth(project.glueups[active].strips),diff=total-project.target.width;
   $('width-status').className=`width-status ${Math.abs(diff)>.01?'bad':''}`;
   $('width-status').innerHTML=`<b>${mm(total)} mm</b> total stavbredd / mål ${mm(project.target.width)} mm<br>${Math.abs(diff)<.01?'✓ Stavbredderna stämmer med målet.':`${diff>0?'+':''}${mm(diff)} mm mot önskad slutbredd.`}${section.shift?`<br>Efter rätning: <b>${mm(section.usable)} mm</b>.`:''}`;
   $('bevel-info').textContent=`Fasningens sidoförskjutning: ${mm(Math.abs(section.shift))} mm. Kaplistan lägger till samma bredd på varje råstav. Ytterkanternas trimning minskar limningens bredd med ${mm(Math.abs(section.shift))} mm.`;
-  $('row-info').innerHTML=`<b>${m.rows.length} rader × ${mm(project.stock.thickness)} mm</b> = ${mm(m.rawLength)} mm före sluttrimning.<br>Tvärkap ${mm(project.stock.slice)} − 2 × ${mm(project.stock.surface)} ytmån = ${mm(project.stock.slice-2*project.stock.surface)} mm tillgänglig tjocklek.`;
+  $('row-info').innerHTML=`<b>${m.rows.length} rader × ${mm(project.stock.thickness)} mm</b> = ${mm(m.rawLength)} mm i limning 2.<br>Följd: ${sourceSequence(project).join(' → ')}${project.stock.extraRows?` · ${project.stock.extraRows} extra rader`:''}.<br>Tvärkap ${mm(project.stock.slice)} − 2 × ${mm(project.stock.surface)} slutlig ytmån = ${mm(project.stock.slice-2*project.stock.surface)} mm${m.reglues.length?' före omlimningarnas extra ytmån':' tillgänglig tjocklek'}.`;
   const views=end?[['finish','Färdig bräda'],['section','Stavtvärsnitt'],['source','Limning 1'],['cut','Tvärkapning'],['assembly','Limning 2']]:[['finish','Färdig bräda'],['section','Stavtvärsnitt'],['source','Limning 1']];
+  for(const step of m.reglues)views.push([`recut${step.stage}`,`Kapning ${step.stage}`],[step.id,`Limning ${step.stage}`]);
   if(!views.some(([id])=>id===view))view='finish';
   $('view-tabs').innerHTML=views.map(([id,title])=>`<button data-view="${id}" aria-pressed="${view===id}">${title}</button>`).join('');
   const preview=renderPreview(project,m,view,active);
@@ -66,7 +84,9 @@ function renderReports(m){
   $('report-plan').innerHTML=`<ol class="plan">${m.plan.map((step,i)=>`<li><span class="plan-number">${i+1}</span><div><h3>${esc(step.title)}</h3><p>${esc(step.text)}</p></div></li>`).join('')}</ol>`;
   $('report-cutlist').innerHTML=`<h3>Råämnen till första limningen</h3><p class="report-caption">L × B × T i mm. Rektangulära ämnen av riktat virke, före eventuell fasning. Identiska stavar är grupperade inom respektive grundlimning.</p><div class="table-wrap"><table><thead><tr><th scope="col">Limning</th><th scope="col">Träslag</th><th scope="col">Antal</th><th scope="col">Längd</th><th scope="col">Bredd</th><th scope="col">Tjocklek</th><th scope="col">Fasvinkel</th></tr></thead><tbody>${m.cutlist.map(r=>`<tr><td>1 · ${r.source}</td><td>${woodName(r.wood)}</td><td>${r.count}</td><td>${mm(r.length)}</td><td>${mm(r.width)}</td><td>${mm(r.thickness)}</td><td>${mm(r.angle)}°</td></tr>`).join('')}</tbody></table></div>${project.mode==='end'?`<h3 style="margin-top:22px">Tvärkapning till andra limningen</h3><p class="report-caption">Varje segment innehåller hela grundlimningens träkombination. Mått nedan gäller före vältning och slutplaning.</p><div class="table-wrap"><table><thead><tr><th>Källa</th><th>Antal</th><th>Tvärkapmått</th><th>Bredd</th><th>Tjocklek</th><th>Kap mot fiber</th></tr></thead><tbody>${Object.entries(m.sources).map(([key,s])=>`<tr><td>${key}</td><td>${s.count}</td><td>${mm(project.stock.slice)}</td><td>${mm(s.width)}</td><td>${mm(project.stock.thickness)}</td><td>90°</td></tr>`).join('')}</tbody></table></div>`:''}<p class="report-caption">Vinkel = fasning från lodrät långsida, inte gering. Runda råämnen uppåt i verkstaden. Lägg till marginal för din såg, riktning och virkesfel.</p>`;
   const volume=m.material.reduce((n,r)=>n+r.blankVolume,0);
+  if(m.reglues.length)$('report-cutlist').insertAdjacentHTML('beforeend',`<h3>Omlimning av befintlig skiva</h3><p class="report-caption">Dessa delar kapas ur tidigare limning, inte ur nytt virke. Samtliga består av de träslag som redan finns i skivan. L × B × T före varje omlimnings planing, i mm.</p><div class="table-wrap"><table><thead><tr><th>Steg</th><th>Källa</th><th>Antal</th><th>Längd</th><th>Bredd</th><th>Tjocklek</th></tr></thead><tbody>${m.reglues.map(step=>`<tr><td>Limning ${step.stage}</td><td>Limning ${step.stage-1}</td><td>${step.count}</td><td>${mm(step.segmentLength)}</td><td>${mm(step.segmentWidth)}</td><td>${mm(step.input.thickness)}</td></tr>`).join('')}</tbody></table></div><p class="report-caption">Alla kap är vinkelräta genom skivan. Se arbetsplanen för remsordning, 180° vridning, sågspår och restbitar.</p>`);
   $('report-material').innerHTML=`<h3>Material per träslag</h3><p class="report-caption">Volym av de rektangulära råämnena i kaplistan. 1 liter = 1 000 000 mm³.</p><div class="table-wrap"><table><thead><tr><th>Träslag</th><th>Stavar</th><th>Ämnesvolym</th><th>Varav fasningsspill</th></tr></thead><tbody>${m.material.map(r=>`<tr><td>${woodName(r.wood)}</td><td>${r.count}</td><td>${mm(r.blankVolume/1e6)} l</td><td>${mm((r.blankVolume-r.shapedVolume)/1e6)} l</td></tr>`).join('')}</tbody></table></div><div class="material-total"><strong>≈ ${mm(volume/1e6)} l</strong> riktade ämnen totalt</div><p class="report-caption">Beräkning: antal × längd × bredd × tjocklek, summerat per träslag. Inkluderar definierade tvärsågspår, ändmån, ytmån och fasningsspill. Ytterkantstrimning och radtrimning ingår i ämnesvolymen. Exkluderar längsgående sågspår mellan råämnen, råvirkets riktningsmån, defekter, lim och inlaymaterial. Detta är ett ämnesbehov, inte en färdig inköpsvolym.</p>`;
+  if(m.reglues.length)$('report-material').insertAdjacentHTML('beforeend',`<h3>Spill vid omlimning</h3><p class="report-caption">Ingår redan i råämnena ovan, lägg inte till en gång till.</p><div class="table-wrap"><table><thead><tr><th>Steg</th><th>Sågspår</th><th>Restbit</th><th>Planing</th></tr></thead><tbody>${m.reglues.map(step=>`<tr><td>Limning ${step.stage}</td><td>${mm(step.kerfVolume/1e6)} l</td><td>${mm(step.offcutVolume/1e6)} l</td><td>${mm(step.surfaceVolume/1e6)} l</td></tr>`).join('')}</tbody></table></div>`);
 }
 $('inlay-wood').innerHTML=options(project.inlay.wood);
 $('examples').innerHTML=EXAMPLES.map(e=>`<button class="example-card" data-example="${e.id}"><span class="example-art" aria-hidden="true"></span><span><strong>${e.name}</strong><small>${e.description}</small></span></button>`).join('');
@@ -76,7 +96,11 @@ document.addEventListener('input',event=>{
   const next=clone(project);
   if(el.type==='number'&&(el.value===''||!Number.isFinite(el.valueAsNumber))){el.setAttribute('aria-invalid','true');$('save-status').textContent='Ofullständigt mått · senast giltiga design visas';return;}
   const value=el.type==='checkbox'?el.checked:el.type==='number'?el.valueAsNumber:el.value;
-  if(el.dataset.path)setPath(next,el.dataset.path,value);
+  if(el.dataset.path){
+    if(el.dataset.path==='arrangement.pattern'&&value.startsWith('custom'))next.arrangement.sequence=clone(sourceSequence(project));
+    setPath(next,el.dataset.path,value);
+    if(el.dataset.path==='arrangement.pattern')for(const key of sourceSequence(next))next.glueups[key]??=clone(next.glueups.A);
+  }
   else if(el.dataset.strip)next.glueups[active].strips[Number(el.closest('[data-index]').dataset.index)][el.dataset.strip]=value;
   else next.glueups[active].angle=value;
   const controls=el.dataset.path==='arrangement.pattern';
@@ -92,10 +116,12 @@ document.addEventListener('focusout',event=>{
 });
 document.addEventListener('click',event=>{
   const b=event.target.closest('button');if(!b)return;
-  if(b.dataset.mode){const next=clone(project);next.mode=b.dataset.mode;active='A';view='finish';commit(next,{controls:true});}
+  if(b.dataset.mode){const next=clone(project);next.mode=b.dataset.mode;const previous=active;active='A';view='finish';if(!commit(next,{controls:true})){active=previous;renderControls();render();}}
   if(b.dataset.source){active=b.dataset.source;renderControls();render();}
   if(b.dataset.view){view=b.dataset.view;render();}
   if(b.dataset.report){report=b.dataset.report;render();}
+  if(b.dataset.removeSequence!==undefined){const next=clone(project);next.arrangement.sequence.splice(Number(b.dataset.removeSequence),1);commit(next,{controls:true});}
+  if(b.dataset.removeReglue!==undefined){const next=clone(project);next.reglue.splice(Number(b.dataset.removeReglue));commit(next,{controls:true});}
   if(b.dataset.action){
     const next=clone(project),a=next.glueups[active].strips,i=Number(b.closest('[data-index]').dataset.index);
     if(b.dataset.action==='duplicate'&&a.length<60)a.splice(i+1,0,clone(a[i]));
@@ -105,6 +131,30 @@ document.addEventListener('click',event=>{
     commit(next,{controls:true});
   }
   if(b.dataset.example){active='A';view='finish';commit(example(b.dataset.example),{controls:true});message('Exemplet är laddat och kan redigeras fritt. Ångra återställer din tidigare design.');}
+});
+document.addEventListener('change',event=>{
+  const el=event.target;if(el.dataset.sequence===undefined)return;
+  const next=clone(project);next.arrangement.sequence[Number(el.dataset.sequence)]=el.value;commit(next);
+});
+$('add-sequence').addEventListener('click',()=>{if(project.arrangement.sequence.length>=16)return;const next=clone(project);next.arrangement.sequence.push(active);commit(next,{controls:true});});
+$('add-source').addEventListener('click',()=>{
+  const key=SOURCE_IDS.find(key=>!project.glueups[key]);if(!key)return;
+  const next=clone(project);next.glueups[key]=clone(project.glueups[active]);active=key;
+  if(commit(next,{controls:true}))message(`Grundlimning ${key} skapad som kopia. Välj ${key} i radföljden när den ska användas.`);
+});
+$('remove-source').addEventListener('click',()=>{
+  if(active==='A')return;
+  const next=clone(project),sequence=sourceSequence(next).filter(key=>key!==active);
+  next.arrangement.sequence=sequence.length?sequence:['A'];next.arrangement.pattern=next.arrangement.pattern.includes('turn')?'custom-turn':'custom';
+  const previous=active;delete next.glueups[active];active='A';if(!commit(next,{controls:true})){active=previous;renderControls();render();}
+});
+$('add-reglue').addEventListener('click',()=>{
+  if(project.reglue.length>=2)return;
+  const next=clone(project),m=derive(project),axis=next.reglue.length?'y':'x';
+  const board=m.reglues.at(-1)||{width:m.availableWidth,length:m.rawLength};
+  const extent=axis==='x'?board.width:board.length;
+  next.reglue.push({axis,stripWidth:Math.max(5,Math.min(40,Math.floor(extent/2-project.stock.kerf))),surface:.5,turn:true,reverse:false});
+  commit(next,{controls:true});
 });
 $('add-strip').addEventListener('click',()=>{const next=clone(project);if(next.glueups[active].strips.length>=60)return;next.glueups[active].strips.push({wood:'walnut',width:20});commit(next,{controls:true});});
 $('undo').addEventListener('click',()=>{if(!history.length)return;project=history.pop();renderControls();render();save();message('Föregående design återställd.');});

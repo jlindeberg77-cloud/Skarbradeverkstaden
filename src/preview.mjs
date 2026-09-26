@@ -1,8 +1,13 @@
-import { WOODS, mm } from './model.mjs';
+import { WOODS, mm, crossSection } from './model.mjs';
 export const escapeHTML = value => String(value).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 const n = v => Number(v.toFixed(4));
 export function renderPreview(p, m, view = 'finish', active = 'A') {
-  const key = m.sources[active] ? active : 'A', section = m.sections[key], source = m.sources[key];
+  const key = Object.hasOwn(p.glueups,active)?active:Object.keys(m.sources)[0];
+  const section = m.sections[key] || crossSection(p.glueups[key],p.mode==='end'?p.stock.thickness:p.target.thickness+2*p.stock.surface), source = m.sources[key];
+  const unused = !source;
+  if (unused && (view==='source'||view==='cut')) view='section';
+  const reglue = m.reglues.find(step=>view===step.id||view===`recut${step.stage}`);
+  const recut = reglue && view===`recut${reglue.stage}`;
   const cross = view === 'section', end = p.mode === 'end';
   let parts = m.parts, width = m.actual.width, length = m.actual.length, origin = 0;
   let description = `Färdig yta: ${mm(length)} × ${mm(width)} mm. Tjocklek ${mm(m.actual.thickness)} mm.`, title = 'Färdig bräda';
@@ -14,17 +19,24 @@ export function renderPreview(p, m, view = 'finish', active = 'A') {
   if (cross) {
     parts = section.raw; width = section.width + Math.abs(section.shift); length = section.thickness; origin = Math.min(0,section.shift);
     title = `Stavarnas tvärsnitt · ${key}`;
-    description = `Ändvy före rätning av ytterkanter. Fasning ${mm(p.glueups[key].angle)}° genom ${mm(section.thickness)} mm tjocklek. Streckade linjer visar kanterna efter rätning: ${mm(section.usable)} mm användbar bredd.`;
+    description = `${unused?'Denna grundlimning används inte i radföljden; ingen källängd eller materialåtgång beräknas. ':''}Ändvy före rätning av ytterkanter. Fasning ${mm(p.glueups[key].angle)}° genom ${mm(section.thickness)} mm tjocklek. Streckade linjer visar kanterna efter rätning: ${mm(section.usable)} mm användbar bredd.`;
   }
   if (view === 'assembly') {
     parts = m.assembled; origin = Math.min(...m.rows.map(r=>r.offset));
     width = Math.max(...m.rows.map(r=>r.offset + m.sections[r.source].usable))-origin; length = m.rawLength;
     title = 'Vältning & limning 2';
-    description = `${m.rows.length} segment, välta 90°${p.arrangement.pattern.includes('turn') ? ', varannan rad vriden 180° i planet' : ''}. Streckad ram visar sluttrimningen. ${mm(m.availableWidth)} mm gemensam bredd. A/B-källor och radordning finns i arbetsplanen.`;
+    description = `${m.rows.length} segment, välta 90°${p.arrangement.pattern.includes('turn') ? ', varannan rad vriden 180° i planet' : ''}. Streckad ram visar ${m.reglues.length?'den rätade skivan inför nästa kapning':'sluttrimningen'}. ${mm(m.availableWidth)} mm gemensam bredd. Källor och radordning finns i arbetsplanen.`;
+  }
+  if (reglue) {
+    const board=recut?reglue.input:reglue;
+    parts=board.parts;width=board.width;length=board.length;
+    title=recut?`Kapning inför limning ${reglue.stage}`:`Limning ${reglue.stage}`;
+    description=recut?`${reglue.count} remsor à ${mm(reglue.stripWidth)} mm, ${mm(reglue.kerf)} mm sågspår och ${mm(reglue.offcut)} mm restbit. Ljusa band är material som försvinner.`:`${mm(length)} × ${mm(width)} × ${mm(board.thickness)} mm efter limning och ${mm(reglue.surface)} mm planing per sida. ${reglue.turn?'Varannan lagd remsa är vriden 180°. ':''}${reglue.reverse?'Remsornas ordning är omvänd. ':''}Ändträytan är fortfarande uppåt.`;
   }
   const displayW = cross ? width : length, displayH = cross ? length : width;
   const scaleRef = Math.max(displayW, displayH), pad = scaleRef*.105, font = scaleRef*.022;
-  const woodPatterns = Object.entries(WOODS).map(([id,w]) => `<pattern id="wood-${id}" width="${end && (view==='finish'||view==='assembly')?13:72}" height="${end && (view==='finish'||view==='assembly')?13:18}" patternUnits="userSpaceOnUse"><rect width="100%" height="100%" fill="${w.color}"/>${end && (view==='finish'||view==='assembly') ? `<path d="M-3 5 Q7 -6 17 8 M-3 9 Q7 -2 17 12 M-3 13 Q7 2 17 16" fill="none" stroke="${w.grain}" stroke-width=".4" opacity=".28"/><path d="M2 2L3 3M10 9L11 10" stroke="${w.grain}" opacity=".3"/>` : `<path d="M0 3Q20 0 40 3T80 3M0 8Q24 12 50 8T85 8M0 14Q30 10 72 15" fill="none" stroke="${w.grain}" stroke-width="${id==='zebrawood'?1.5:.5}" opacity="${id==='zebrawood'?.55:.25}"/>`}</pattern>`).join('');
+  const endTexture = end && (view==='finish'||view==='assembly'||reglue);
+  const woodPatterns = Object.entries(WOODS).map(([id,w]) => `<pattern id="wood-${id}" width="${endTexture?13:72}" height="${endTexture?13:18}" patternUnits="userSpaceOnUse"><rect width="100%" height="100%" fill="${w.color}"/>${endTexture ? `<path d="M-3 5 Q7 -6 17 8 M-3 9 Q7 -2 17 12 M-3 13 Q7 2 17 16" fill="none" stroke="${w.grain}" stroke-width=".4" opacity=".28"/><path d="M2 2L3 3M10 9L11 10" stroke="${w.grain}" opacity=".3"/>` : `<path d="M0 3Q20 0 40 3T80 3M0 8Q24 12 50 8T85 8M0 14Q30 10 72 15" fill="none" stroke="${w.grain}" stroke-width="${id==='zebrawood'?1.5:.5}" opacity="${id==='zebrawood'?.55:.25}"/>`}</pattern>`).join('');
   const polygons = parts.map(part => `<polygon data-wood="${part.wood}" points="${part.polygon.map(q=>cross ? `${n(q.x-origin)},${n(q.y)}` : `${n(q.y)},${n(q.x-origin)}`).join(' ')}" fill="url(#wood-${part.wood})" stroke="#362718" stroke-opacity=".18" stroke-width=".3"><title>${WOODS[part.wood].name}${part.row!==undefined?` · rad ${part.row+1}`:''}</title></polygon>`).join('');
   let overlays = '';
   if (view === 'cut') {
@@ -35,7 +47,12 @@ export function renderPreview(p, m, view = 'finish', active = 'A') {
     overlays += `<rect x="0" y="0" width="${p.stock.endTrim}" height="${width}" fill="#f3f0e9" opacity=".7"/><rect x="${length-p.stock.endTrim}" y="0" width="${p.stock.endTrim}" height="${width}" fill="#f3f0e9" opacity=".7"/>`;
   }
   if(cross) overlays += `<path d="M${section.left-origin} 0v${length}M${section.left-origin+section.usable} 0v${length}" fill="none" stroke="#fff" stroke-width="${scaleRef*.003}" stroke-dasharray="3 2"/>`;
-  if(view==='assembly') overlays += `<rect x="0" y="${m.originX-origin}" width="${m.actual.length}" height="${m.actual.width}" fill="none" stroke="#fff" stroke-width="${scaleRef*.004}" stroke-dasharray="5 3"/>`;
+  if(view==='assembly') overlays += `<rect x="0" y="${m.originX-origin}" width="${m.reglues.length?m.rawLength:m.actual.length}" height="${m.reglues.length?m.availableWidth:m.actual.width}" fill="none" stroke="#fff" stroke-width="${scaleRef*.004}" stroke-dasharray="5 3"/>`;
+  if(recut) {
+    const band=(start,size)=>reglue.axis==='x'?`<rect x="0" y="${n(start)}" width="${length}" height="${n(size)}" fill="#f3f0e9" opacity=".85"/>`:`<rect x="${n(start)}" y="0" width="${n(size)}" height="${width}" fill="#f3f0e9" opacity=".85"/>`;
+    for(let i=0;i<reglue.count;i++)overlays+=band(i*(reglue.stripWidth+reglue.kerf)+reglue.stripWidth,reglue.kerf);
+    overlays+=band(reglue.count*(reglue.stripWidth+reglue.kerf),reglue.offcut);
+  }
   if(view==='finish') {
     if(p.groove.enabled && m.grooveValid) {
       const g=p.groove;
