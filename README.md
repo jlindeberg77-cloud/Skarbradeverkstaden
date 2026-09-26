@@ -23,12 +23,18 @@ servera på en statisk webbserver, inklusive under en sökväg.
 - Önskade slutmått, nio träslag, remsbredder, duplicering, borttagning och ordning.
 - Skalenlig SVG med stiliserad ådring och mått, aldrig upprepat låtsasmaterial.
 - Edge grain med en limning och ändträ med fysiskt modellerad tvärkap/90° vältning.
-- A/B-paneler, 180° vridning av varannan rad och verklig förskjutnings-/trimförlust.
+- Upp till fyra grundlimningar A–D, färdiga eller egna upprepade radföljder,
+  180° vridning av varannan rad och verklig förskjutnings-/trimförlust.
+- Limning 3 och 4: kapa föregående ändträskiva i remsor i två valbara riktningar,
+  vrid varannan 180°, vänd ordningen och limma igen. Mått, sågspår, restbitar
+  och ytmån beräknas genom hela kedjan. Extra startrader kan täcka längdförlust.
 - Gemensam längsgående fasvinkel per panel, inklusive ett ±22,5° sicksackexempel.
-- Preview av stavtvärsnitt, limning 1, tvärkapning, limning 2 och färdig yta.
+- Preview av stavtvärsnitt, limning 1, tvärkapning, limning 2–4, omlimningarnas
+  kapning och färdig yta.
 - Grupperad kaplista, separat segmentlista, materialvolym och parametrisk arbetsplan.
 - Saftspår och roterad text/inlay som separata dekorationslager.
-- Fyra redigerbara exempel, autosparning, ångra, ny design och JSON-import/export.
+- Sex redigerbara exempel, autosparning, ångra, ny design och JSON-import/export.
+  Äldre version 1-projekt migreras automatiskt utan ändrade mått.
 - Utskrift av preview, arbetsplan, kaplista och material. Offline efter första laddning.
 - Responsiv layout med preview först på mobil och rullbar stavlista.
 
@@ -40,18 +46,19 @@ Kaplistan gäller riktat virke. Råvirkesmån, defekter och längsgående sågsp
 Beräknings- och renderingstester använder enbart Nodes inbyggda testmotor:
 
 ```powershell
-node --test tests/model.test.mjs tests/preview.test.mjs
+node --test tests/model.test.mjs tests/preview.test.mjs tests/multistage.test.mjs
 ```
 
 I en miljö som blockerar underprocesser, med Node 22+:
 
 ```powershell
-node --test --test-isolation=none tests/model.test.mjs tests/preview.test.mjs
+node --test --test-isolation=none tests/model.test.mjs tests/preview.test.mjs tests/multistage.test.mjs
 ```
 
-Browserintegration finns i `tests/browser.mjs`. Starta servern först. Installera
+Browserintegration finns i `tests/browser.mjs` och `tests/browser-multistage.mjs`.
+Starta servern först. Installera
 Playwright separat vid behov (`npm install --no-save playwright` och
-`npx playwright install chromium`), kör sedan `node tests/browser.mjs`.
+`npx playwright install chromium`), kör sedan båda filerna med `node`.
 `PLAYWRIGHT_MODULE` kan peka på en befintlig `playwright/index.mjs` och
 `BROWSER_EXECUTABLE` på en befintlig Chrome/Edge. Bilder hamnar i ignorerade
 `test-results/`. Testerna använder en separat temporär browserprofil.
@@ -76,7 +83,8 @@ dimensionskedjor inte ska användas som produktionsunderlag. Historiken finns i 
 ## Avgränsningar
 
 Ingen godtycklig XY-gering, kil-/triangelkonstruktion, individuell fasvinkel inom
-en panel, tredje limningseditor, bildtolkning eller automatisk CAM/G-code-export.
+en panel, bildtolkning eller automatisk CAM/G-code-export. Limning 3–4 stöder
+rektangulära remsor och 180° vridning i planet, inte ny vältning till andra träytor.
 Operationsmodellen har typade steg och indata-id för fortsatt utveckling.
 Inlay är en designskiss, inte ett verifierat CNC-underlag. Ingen automatisk
 bedömning av träslags lämplighet för livsmedelskontakt. Färg/ådring är stiliserad.

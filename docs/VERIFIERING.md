@@ -1,4 +1,37 @@
-# Verifiering 2026-09-25
+# Verifiering
+
+## Utökning 2026-09-26: A–D och limning 3–4
+
+`node --test --test-isolation=none tests/model.test.mjs tests/preview.test.mjs tests/multistage.test.mjs`
+
+**33 tester passerade, 0 misslyckades.** De 13 nya testerna täcker:
+- Fyra grundlimningar med ojämnt radantal och egna upprepningar som D–B–D–C.
+- Oanvänd A: varken falskt materialbehov eller tyst ersättning med annan preview.
+- Kända sågspår/restbitar, verklig rotation av asymmetriska delar och volymbalans.
+- Limning 4 använder faktiskt resultat från limning 3; ingen extra råvirkespost.
+- Brist i samtliga slutmått, extra startrader och motsvarande ökade materialbehov.
+- Migrering från schema 1 utan ändrad geometri/kaplista; JSON-roundtrip av schema 2.
+- Felaktiga följder, saknade källor, omöjliga kap och för många limningssteg avvisas.
+- Båda kapriktningarna, vändning/omordning och fasade ytor genom två omlimningar.
+- Omlimningsinställningar bevaras men är inaktiva i edge-grain-läget.
+
+`node tests/browser.mjs`: **40 befintliga kontroller passerade**.
+`node tests/browser-multistage.mjs`: **46 nya kontroller passerade**.
+Playwright/Edge med separat profil och samma miljövariabler som nedan.
+
+De nya browserkontrollerna omfattar skapande/redigering/borttagning av C/D,
+egna radföljder, källfördelning i kaplistan, limning 3–4 och deras kapvyer,
+slutmått med arbetsmån, volymredovisning, dynamisk arbetsplan, avvisade kapmått,
+omladdning, JSON-export/import, ångra, byte av brädtyp och migrering av ett
+version 1-projekt. Layout och navigering kontrollerade vid 768/390/320 px.
+Inga JavaScript- eller konsolfel. Desktop- och mobilbilder granskade visuellt.
+
+`node --check` på modell, app och preview samt `git diff --check` passerade.
+Bildigenkänning ingår inte i denna utökning. Omlimning stöder rektangulära kap
+i planet och 180° vridning, inte godtyckliga kapplan eller ny 90° vältning.
+Ingen fysisk provtillverkning har gjorts.
+
+## Ursprunglig verifiering 2026-09-25
 
 ## Miljö
 - Windows, Node v24.19.0, Playwright med installerad Microsoft Edge i headless-läge.

@@ -12,12 +12,15 @@ visar X vågrätt och Z lodrätt.
   + två ytmåner. Ämneslängd = slutlängd + två ändmåner.
 - End grain: tvärkapa vinkelrätt mot Y. Vält varje segment 90° så dess X×Z-yta
   pekar uppåt. Tvärkapmåttet blir brädans nya tjocklek, inte dess radlängd.
-- Antal rader = tak(önskad längd / grundlimningens kalibrerade tjocklek).
+- Antal rader = tak(önskad längd / grundlimningens kalibrerade tjocklek) + extra rader.
 - Tillgänglig sluttjocklek = tvärkapmått − 2 × ytmån. Överskott planas bort;
   underskott visas som avvikelse och preview visar det möjliga måttet.
-- Källängd per A/B = antal segment × (tvärkapmått + sågspår) + 2 × ändmån.
+- Källängd per A/B/C/D = antal segment × (tvärkapmått + sågspår) + 2 × ändmån.
   Ett sågspår per uttaget segment är budgeterat, inklusive det sista.
-- A och B är separata paneler. Bara använda paneler förbrukar material.
+- A–D är separata paneler. Bara använda paneler förbrukar material. Radföljden
+  kan vara ett färdigt mönster eller en egen lista med 1–16 positioner, till exempel
+  D–B–C–D. Listan upprepas och kapas vid beräknat radantal. Förekomsten av varje
+  bokstav avgör exakt hur många segment som ska kapas ur den panelen.
 - Vändning är en riktig 180° rotation i bordets plan efter vältning, inte en
   spegling. Förskjutning ändrar radens position utan upprepning av material.
 - Slutbredd begränsas till radernas gemensamma helt fyllda rektangulära bredd.
@@ -43,17 +46,46 @@ Exemplet Sicksack använder A=+22,5° och B=−22,5°. Det ger motsatta diagonal
 i verkliga ändträytor. Valfri vinkel per enskild stav, geringskap i XY, kilar,
 trianglar och godtyckliga diamantkonstruktioner ingår inte i denna iteration.
 
-## Operationer och fortsatt utveckling
+## Operationer och limning 3–4
 `derive()` returnerar operationer med id, typ, input-id, mått och polygoner.
 Kapning → limning 1 → tvärkapning → 90° vältning/180° arrangering → limning 2
-→ sluttrimning. Ytterligare kap-/limningssteg kan konsumera ett tidigare
-operationsresultat. En tredje limning har ännu ingen editor eller exekvering.
-Det finns därför ingen kontroll som utger sig för att utföra den.
+→ limning 3 → limning 4 → sluttrimning. De två sista limningarna är valfria.
+
+Före limning 3 rätas limning 2 till radernas gemensamma rektangel, utan att ännu
+trimmas till önskat slutmått. Varje omlimning konsumerar sedan föregående skivas
+faktiska träpolygoner. Kapning kan dela antingen bredden X eller längden Y.
+Alla kap går vinkelrätt genom skivans tjocklek; ändträytan behålls uppåt.
+
+Om kapriktningens tillgängliga mått är E, remsmåttet w och sågspåret k:
+- Antal remsor n = golv(E / (w+k)). Ett helt sågspår reserveras för varje uttag,
+  även det sista; ingen optimering som sparar sista sågspåret antas.
+- Nytt mått i kapriktningen = n×w. Den andra sidans mått ändras inte.
+- Restbit = E − n×(w+k). Restbiten återförs inte till brädan.
+- Sågspårsvolym = n×k×skivans andra sidmått×ingående tjocklek.
+- Restbitsvolym = restbit×andra sidmåttet×ingående tjocklek.
+- Efter limning: ny tjocklek = ingående tjocklek − 2×stegets ytmån.
+
+Remsordningen kan reverseras. Därefter vrids varannan **lagd** remsa 180° runt
+sin mittpunkt i bordets plan. Varje polygon klipps från ingångsskivan, förflyttas
+och roteras som en fysisk del. Ingen geometrisk skevning, materialupprepning,
+ny råstav eller ny 90° vältning används. Kapvyn visar sågspår och restbit;
+limningsvyn visar de kvarvarande delarna efter arrangering.
+
+Limning 4 använder exakt resultatet efter limning 3, inklusive dess mått och
+ytmån. Ytmånen för slutplaning tillkommer efter sista limningen. Verktyget visar
+avvikelser om önskad längd, bredd eller tjocklek inte ryms efter operationerna.
+Öka extra startrader för längd, stavbredder för bredd och tvärkapmått för tjocklek.
+Omlimningarna kräver minst en hel remsa och tillåter högst 200 per steg.
+I edge-grain-läget är dessa steg inaktiva men sparade inställningar bevaras.
 
 ## Kaplista och material
 Kaplistan grupperar identiska råämnen per panel, träslag och remsbredd. Den
 anger antal, längd, rektangulär bredd, tjocklek och fasvinkel. Tvärkapade segment
 visas separat med sin blandning av träslag representerad av källpanelens id.
+
+Omlimningarnas segmentlista redovisas separat som uttag ur befintlig skiva.
+Den adderas inte till råvirkesbehovet. Sågspår, restbit och planingsspill för varje
+omlimning visas separat som delar av det ursprungliga materialet.
 
 Volym = Σ(antal × längd × bredd × tjocklek). 1 liter = 1 000 000 mm³.
 Fasningsspill = rektangulär volym − parallellogrammens volym före paneltrimning.
@@ -70,7 +102,11 @@ versalhöjd. Rotation sker runt textens centrum och text utanför kanten klipps.
 Ingen fräsbana, V-bit-vinkel, passning, livsmedelsklassning eller G-code beräknas.
 
 ## Sparning
-Schema `version: 1` lagras i localStorage under `skarbradeverkstan.project.v1`.
+Schema `version: 2` lagras i localStorage under den bevarade nyckeln
+`skarbradeverkstan.project.v1`. Import och återläsning migrerar version 1 till
+version 2 med noll extra rader, ingen omlimning och motsvarande tidigare A/B-följd.
+Tidigare geometri och kaplista ändras inte. Nyckeln behålls för att användaren
+automatiskt ska hitta sitt tidigare projekt. Exporten märks med version 2.
 Varje giltig ändring sparas; ofullständiga tal skriver inte över giltiga data.
 JSON kontrolleras för version, typer, intervall och geometri innan import.
 Gamla v4-data behålls under sin gamla nyckel. Skadad ny lagring skrivs inte över
